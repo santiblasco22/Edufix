@@ -1,7 +1,7 @@
 import React, { useState, useCallback } from 'react';
 import {
   View, Text, StyleSheet, FlatList, TouchableOpacity,
-  TextInput, RefreshControl,
+  TextInput, RefreshControl, ScrollView,
 } from 'react-native';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { MaterialIcons } from '@expo/vector-icons';
@@ -77,11 +77,13 @@ export default function AdminIncidents() {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
+      {/* Header fijo */}
       <View style={styles.header}>
         <Text style={styles.pageTitle}>Todos los incidentes</Text>
         <Text style={styles.count}>{filtered.length} resultado{filtered.length !== 1 ? 's' : ''}</Text>
       </View>
 
+      {/* Búsqueda fija */}
       <View style={styles.searchWrapper}>
         <MaterialIcons name="search" size={18} color={COLORS.textMuted} style={styles.searchIcon} />
         <TextInput
@@ -98,14 +100,16 @@ export default function AdminIncidents() {
         )}
       </View>
 
-      <FlatList
-        data={FILTER_OPTIONS}
+      {/* Filtros fijos */}
+      <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
-        keyExtractor={item => item.value}
         contentContainerStyle={styles.filterList}
-        renderItem={({ item }) => (
+        style={styles.filterScroll}
+      >
+        {FILTER_OPTIONS.map(item => (
           <TouchableOpacity
+            key={item.value}
             style={[styles.filterChip, statusFilter === item.value && styles.filterChipActive]}
             onPress={() => onStatusChange(item.value as IncidentStatus | 'all')}
           >
@@ -113,13 +117,15 @@ export default function AdminIncidents() {
               {item.label}
             </Text>
           </TouchableOpacity>
-        )}
-      />
+        ))}
+      </ScrollView>
 
+      {/* Lista de incidentes — ocupa el espacio restante */}
       <FlatList
+        style={styles.list}
         data={filtered}
         keyExtractor={item => item.id}
-        contentContainerStyle={styles.list}
+        contentContainerStyle={styles.listContent}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.primary} />}
         showsVerticalScrollIndicator={false}
         ListEmptyComponent={
@@ -167,7 +173,8 @@ const styles = StyleSheet.create({
   },
   searchIcon: { marginRight: 8 },
   searchInput: { flex: 1, fontSize: 14, color: COLORS.textPrimary },
-  filterList: { paddingHorizontal: 20, paddingBottom: 14, gap: 8 },
+  filterScroll: { flexGrow: 0 },
+  filterList: { paddingHorizontal: 20, paddingBottom: 12, gap: 8 },
   filterChip: {
     paddingHorizontal: 16,
     paddingVertical: 8,
@@ -182,5 +189,6 @@ const styles = StyleSheet.create({
   },
   filterChipText: { fontSize: 13, fontWeight: '600', color: COLORS.textSecondary },
   filterChipTextActive: { color: COLORS.white },
-  list: { paddingHorizontal: 20, paddingBottom: 30 },
+  list: { flex: 1 },
+  listContent: { paddingHorizontal: 20, paddingBottom: 30 },
 });

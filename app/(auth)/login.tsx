@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, StyleSheet,
-  KeyboardAvoidingView, Platform, ScrollView, Alert, ActivityIndicator,
+  KeyboardAvoidingView, Platform, ScrollView, ActivityIndicator,
 } from 'react-native';
 import { Link } from 'expo-router';
 import { MaterialIcons } from '@expo/vector-icons';
@@ -13,16 +13,30 @@ export default function LoginScreen() {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [errorMsg, setErrorMsg] = useState('');
 
   async function handleLogin() {
+    setErrorMsg('');
     if (!email || !password) {
-      Alert.alert('Error', 'Por favor completá todos los campos.');
+      setErrorMsg('Por favor completá todos los campos.');
       return;
     }
     setLoading(true);
-    const { error } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
-    setLoading(false);
-    if (error) Alert.alert('Error al iniciar sesión', error.message);
+    try {
+      const { error } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
+      if (error) {
+        const isNetwork = error.message?.toLowerCase().includes('network') ||
+          error.message?.toLowerCase().includes('fetch') ||
+          error.message?.toLowerCase().includes('failed');
+        setErrorMsg(isNetwork
+          ? 'Sin conexión al servidor. Revisá tu internet.'
+          : error.message);
+      }
+    } catch {
+      setErrorMsg('Ocurrió un error inesperado. Intentá de nuevo.');
+    } finally {
+      setLoading(false);
+    }
   }
 
   return (
@@ -82,6 +96,13 @@ export default function LoginScreen() {
               </TouchableOpacity>
             </View>
           </View>
+
+          {errorMsg ? (
+            <View style={styles.errorBox}>
+              <MaterialIcons name="error-outline" size={16} color={COLORS.danger} />
+              <Text style={styles.errorText}>{errorMsg}</Text>
+            </View>
+          ) : null}
 
           <TouchableOpacity
             style={[styles.btn, loading && styles.btnDisabled]}
@@ -157,6 +178,13 @@ const styles = StyleSheet.create({
     marginBottom: 28,
   },
   fieldGroup: { marginBottom: 18 },
+  errorBox: {
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    backgroundColor: '#FEF2F2', borderRadius: 10,
+    padding: 12, marginBottom: 12,
+    borderWidth: 1, borderColor: '#FCA5A5',
+  },
+  errorText: { fontSize: 13, color: COLORS.danger, flex: 1 },
   label: {
     fontSize: 13,
     fontWeight: '600',

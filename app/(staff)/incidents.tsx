@@ -1,7 +1,7 @@
 import React, { useState, useCallback } from 'react';
 import {
   View, Text, StyleSheet, FlatList, TouchableOpacity,
-  RefreshControl,
+  RefreshControl, ScrollView,
 } from 'react-native';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { MaterialIcons } from '@expo/vector-icons';
@@ -66,14 +66,15 @@ export default function StaffIncidents() {
         <Text style={styles.count}>{filtered.length} resultado{filtered.length !== 1 ? 's' : ''}</Text>
       </View>
 
-      <FlatList
-        data={FILTER_OPTIONS}
+      <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
-        keyExtractor={item => item.value}
         contentContainerStyle={styles.filterList}
-        renderItem={({ item }) => (
+        style={styles.filterScroll}
+      >
+        {FILTER_OPTIONS.map(item => (
           <TouchableOpacity
+            key={item.value}
             style={[styles.filterChip, statusFilter === item.value && styles.filterChipActive]}
             onPress={() => onFilterChange(item.value as IncidentStatus | 'all')}
           >
@@ -81,13 +82,14 @@ export default function StaffIncidents() {
               {item.label}
             </Text>
           </TouchableOpacity>
-        )}
-      />
+        ))}
+      </ScrollView>
 
       <FlatList
+        style={styles.list}
         data={filtered}
         keyExtractor={item => item.id}
-        contentContainerStyle={styles.list}
+        contentContainerStyle={styles.listContent}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.primary} />}
         showsVerticalScrollIndicator={false}
         ListEmptyComponent={
@@ -121,7 +123,8 @@ const styles = StyleSheet.create({
   },
   pageTitle: { fontSize: 22, fontWeight: '700', color: COLORS.textPrimary },
   count: { fontSize: 13, color: COLORS.textMuted },
-  filterList: { paddingHorizontal: 20, paddingBottom: 14, gap: 8 },
+  filterScroll: { flexGrow: 0 },
+  filterList: { paddingHorizontal: 20, paddingBottom: 12, gap: 8 },
   filterChip: {
     paddingHorizontal: 16,
     paddingVertical: 8,
@@ -136,5 +139,6 @@ const styles = StyleSheet.create({
   },
   filterChipText: { fontSize: 13, fontWeight: '600', color: COLORS.textSecondary },
   filterChipTextActive: { color: COLORS.white },
-  list: { paddingHorizontal: 20, paddingBottom: 30 },
+  list: { flex: 1 },
+  listContent: { paddingHorizontal: 20, paddingBottom: 30 },
 });

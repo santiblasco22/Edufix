@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
@@ -10,6 +10,8 @@ function RootLayoutNav() {
   const { session, profile, loading } = useAuth();
   const segments = useSegments();
   const router = useRouter();
+  // Prevent running routing logic more than once per auth-state change
+  const lastRouteKey = useRef('');
 
   useEffect(() => {
     if (loading) return;
@@ -17,14 +19,25 @@ function RootLayoutNav() {
     const inAuthGroup = segments[0] === '(auth)';
     const inRoleGroup = ['(admin)', '(staff)', '(user)'].includes(segments[0] as string);
 
-    if (!session && !inAuthGroup) {
-      router.replace('/(auth)/login');
-    } else if (session && profile && inAuthGroup) {
-      redirectByRole(profile.role);
-    } else if (session && profile && !inRoleGroup && !inAuthGroup) {
+    if (!session) {
+      if (!inAuthGroup) {
+        router.replace('/(auth)/login');
+      }
+      return;
+    }
+
+    if (!profile) return; // Still loading profile, wait
+
+    // Build a key to detect real changes and avoid redundant redirects
+    const routeKey = `${profile.user_id}-${profile.role}-${inAuthGroup}-${inRoleGroup}`;
+    if (routeKey === lastRouteKey.current) return;
+    lastRouteKey.current = routeKey;
+
+    if (inAuthGroup || !inRoleGroup) {
       redirectByRole(profile.role);
     }
-  }, [session, profile, loading, segments]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [session, profile, loading]); // NO segments — navigating must not trigger re-routing
 
   function redirectByRole(role: string) {
     if (role === 'admin') router.replace('/(admin)/');
