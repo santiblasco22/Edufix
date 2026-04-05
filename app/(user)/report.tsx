@@ -126,7 +126,7 @@ export default function ReportIncident() {
       let photoUrl: string | null = null;
       if (photo) photoUrl = await uploadPhoto(photo);
 
-      const { error } = await supabase.from('incidents').insert({
+      const { data: insertedData, error } = await supabase.from('incidents').insert({
         title: title.trim(),
         description: description.trim(),
         location: location.trim() || null,
@@ -137,7 +137,7 @@ export default function ReportIncident() {
         reported_by: profile.user_id,
         institution_id: institutionId,
         updated_at: new Date().toISOString(),
-      });
+      }).select('id');
 
       if (error) {
         let msg: string;
@@ -154,6 +154,11 @@ export default function ReportIncident() {
           msg = `Error [${error.code ?? '?'}]: ${error.message}`;
         }
         showError(msg);
+        return;
+      }
+
+      if (!insertedData || insertedData.length === 0) {
+        showError('El reporte no se creó. Verificá que ejecutaste el SQL en Supabase Dashboard.');
         return;
       }
 

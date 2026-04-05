@@ -28,12 +28,17 @@ function RootLayoutNav() {
 
     if (!profile) return; // Still loading profile, wait
 
+    const correctGroup = profile.role === 'admin' ? '(admin)'
+      : profile.role === 'staff' ? '(staff)'
+      : '(user)';
+    const inCorrectGroup = segments[0] === correctGroup;
+
     // Build a key to detect real changes and avoid redundant redirects
-    const routeKey = `${profile.user_id}-${profile.role}-${inAuthGroup}-${inRoleGroup}`;
+    const routeKey = `${profile.user_id}-${profile.role}-${inAuthGroup}-${inCorrectGroup}`;
     if (routeKey === lastRouteKey.current) return;
     lastRouteKey.current = routeKey;
 
-    if (inAuthGroup || !inRoleGroup) {
+    if (inAuthGroup || !inCorrectGroup) {
       redirectByRole(profile.role);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -55,6 +60,7 @@ function RootLayoutNav() {
 
   return (
     <Stack screenOptions={{ headerShown: false }}>
+      <Stack.Screen name="index" />
       <Stack.Screen name="(auth)" />
       <Stack.Screen name="(admin)" />
       <Stack.Screen name="(staff)" />

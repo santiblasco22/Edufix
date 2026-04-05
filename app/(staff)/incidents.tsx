@@ -31,7 +31,7 @@ export default function StaffIncidents() {
   async function loadIncidents() {
     const { data } = await supabase
       .from('incidents')
-      .select('*, reporter:profiles!reported_by(full_name, role), assignee:profiles!assigned_to(full_name)')
+      .select('*')
       .eq('institution_id', profile?.institution_id)
       .neq('status', 'cancelled')
       .order('created_at', { ascending: false });

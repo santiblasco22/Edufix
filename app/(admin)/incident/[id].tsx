@@ -41,7 +41,7 @@ export default function AdminIncidentDetail() {
   async function loadIncident() {
     const { data } = await supabase
       .from('incidents')
-      .select('*, reporter:profiles!reported_by(*), assignee:profiles!assigned_to(*)')
+      .select('*')
       .eq('id', id)
       .single();
     setIncident(data as Incident);

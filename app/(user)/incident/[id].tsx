@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
-  ActivityIndicator, Image,
+  ActivityIndicator, Image, Alert,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { MaterialIcons } from '@expo/vector-icons';
@@ -22,13 +22,36 @@ export default function UserIncidentDetail() {
   const router = useRouter();
   const [incident, setIncident] = useState<Incident | null>(null);
   const [loading, setLoading] = useState(true);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => { loadIncident(); }, [id]);
+
+  function confirmDelete() {
+    Alert.alert(
+      'Eliminar reporte',
+      '¿Estás seguro que querés eliminar este reporte? Esta acción no se puede deshacer.',
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        { text: 'Eliminar', style: 'destructive', onPress: handleDelete },
+      ]
+    );
+  }
+
+  async function handleDelete() {
+    setDeleting(true);
+    const { error } = await supabase.from('incidents').delete().eq('id', id);
+    setDeleting(false);
+    if (error) {
+      Alert.alert('Error', 'No se pudo eliminar el reporte. Intentá de nuevo.');
+      return;
+    }
+    router.replace('/(user)/');
+  }
 
   async function loadIncident() {
     const { data } = await supabase
       .from('incidents')
-      .select('*, reporter:profiles!reported_by(*), assignee:profiles!assigned_to(*)')
+      .select('*')
       .eq('id', id)
       .single();
     setIncident(data as Incident);
@@ -54,7 +77,16 @@ export default function UserIncidentDetail() {
           <MaterialIcons name="arrow-back" size={22} color={COLORS.textPrimary} />
         </TouchableOpacity>
         <Text style={styles.navTitle}>Mi reporte</Text>
-        <View style={{ width: 40 }} />
+        {incident.status === 'pending' ? (
+          <TouchableOpacity onPress={confirmDelete} style={styles.deleteBtn} disabled={deleting}>
+            {deleting
+              ? <ActivityIndicator size="small" color={COLORS.danger} />
+              : <MaterialIcons name="delete-outline" size={22} color={COLORS.danger} />
+            }
+          </TouchableOpacity>
+        ) : (
+          <View style={{ width: 40 }} />
+        )}
       </View>
 
       <ScrollView style={styles.scroll} showsVerticalScrollIndicator={false}>
@@ -202,6 +234,11 @@ const styles = StyleSheet.create({
   backBtn: {
     width: 40, height: 40, borderRadius: 12,
     backgroundColor: COLORS.background,
+    justifyContent: 'center', alignItems: 'center',
+  },
+  deleteBtn: {
+    width: 40, height: 40, borderRadius: 12,
+    backgroundColor: '#FEF2F2',
     justifyContent: 'center', alignItems: 'center',
   },
   navTitle: { fontSize: 16, fontWeight: '700', color: COLORS.textPrimary },

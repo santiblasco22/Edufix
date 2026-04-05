@@ -20,16 +20,18 @@ export default function UserHome() {
   const [refreshing, setRefreshing] = useState(false);
 
   async function loadIncidents() {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
     const { data } = await supabase
       .from('incidents')
-      .select('*, assignee:profiles!assigned_to(full_name)')
-      .eq('reported_by', profile?.user_id)
+      .select('*')
+      .eq('reported_by', user.id)
       .order('created_at', { ascending: false });
 
-    if (data) setIncidents(data as Incident[]);
+    setIncidents((data ?? []) as Incident[]);
   }
 
-  useFocusEffect(useCallback(() => { loadIncidents(); }, [profile]));
+  useFocusEffect(useCallback(() => { loadIncidents(); }, []));
 
   async function onRefresh() {
     setRefreshing(true);

@@ -27,7 +27,7 @@ export default function StaffIncidentDetail() {
   async function loadIncident() {
     const { data } = await supabase
       .from('incidents')
-      .select('*, reporter:profiles!reported_by(*), assignee:profiles!assigned_to(*)')
+      .select('*')
       .eq('id', id)
       .single();
     if (data) {

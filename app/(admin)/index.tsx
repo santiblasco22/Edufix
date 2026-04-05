@@ -31,7 +31,7 @@ export default function AdminDashboard() {
   async function loadData() {
     const { data: incidents } = await supabase
       .from('incidents')
-      .select('*, reporter:profiles!reported_by(full_name, role), assignee:profiles!assigned_to(full_name)')
+      .select('*')
       .eq('institution_id', profile?.institution_id)
       .order('created_at', { ascending: false });
 

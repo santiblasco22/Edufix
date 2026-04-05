@@ -24,7 +24,7 @@ export default function StaffDashboard() {
     const [myRes, pendingRes] = await Promise.all([
       supabase
         .from('incidents')
-        .select('*, reporter:profiles!reported_by(full_name)')
+        .select('*')
         .eq('assigned_to', profile?.user_id)
         .eq('status', 'in_progress')
         .order('created_at', { ascending: false }),

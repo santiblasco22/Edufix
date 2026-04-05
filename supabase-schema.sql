@@ -96,11 +96,12 @@ CREATE POLICY "Admins can update any profile"
     )
   );
 
--- Incidents: read all in same institution, insert as reporter, update staff/admin
+-- Incidents: read own reports + all in same institution, insert as reporter, update staff/admin
 CREATE POLICY "Users can view incidents in their institution"
   ON incidents FOR SELECT TO authenticated
   USING (
-    institution_id = (
+    reported_by = auth.uid()
+    OR institution_id = (
       SELECT institution_id FROM profiles WHERE user_id = auth.uid()
     )
   );
@@ -155,12 +156,13 @@ CREATE POLICY "Users can mark own notifications as read"
 CREATE OR REPLACE FUNCTION handle_new_user()
 RETURNS TRIGGER AS $$
 BEGIN
-  INSERT INTO public.profiles (user_id, full_name, email, role)
+  INSERT INTO public.profiles (user_id, full_name, email, role, institution_id)
   VALUES (
     NEW.id,
     COALESCE(NEW.raw_user_meta_data->>'full_name', 'Usuario'),
     NEW.email,
-    COALESCE(NEW.raw_user_meta_data->>'role', 'user')
+    COALESCE(NEW.raw_user_meta_data->>'role', 'user'),
+    '00000000-0000-0000-0000-000000000001'
   );
   RETURN NEW;
 END;
