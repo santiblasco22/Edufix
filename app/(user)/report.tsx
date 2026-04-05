@@ -33,6 +33,7 @@ export default function ReportIncident() {
   const [photo, setPhoto] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [errorMsg, setErrorMsg] = useState('');
 
   async function pickPhoto() {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -86,20 +87,21 @@ export default function ReportIncident() {
   }
 
   async function handleSubmit() {
-    if (!title.trim()) {
-      Alert.alert('Error', 'Por favor ingresá un título para el incidente.');
-      return;
-    }
-    if (!description.trim()) {
-      Alert.alert('Error', 'Por favor ingresá una descripción del incidente.');
-      return;
-    }
+    setErrorMsg('');
+    if (!title.trim()) { setErrorMsg('Por favor ingresá un título.'); return; }
+    if (!description.trim()) { setErrorMsg('Por favor ingresá una descripción.'); return; }
+    if (!profile) { setErrorMsg('Sin perfil cargado. Cerrá sesión y volvé a entrar.'); return; }
+
+    console.log('[Report] profile.user_id:', profile.user_id);
+    console.log('[Report] profile.institution_id:', profile.institution_id);
 
     setSubmitting(true);
     let photoUrl: string | null = null;
     if (photo) photoUrl = await uploadPhoto(photo);
 
-    const { error } = await supabase.from('incidents').insert({
+    const institutionId = profile.institution_id ?? '00000000-0000-0000-0000-000000000001';
+
+    const { data, error } = await supabase.from('incidents').insert({
       title: title.trim(),
       description: description.trim(),
       location: location.trim() || null,
@@ -107,23 +109,20 @@ export default function ReportIncident() {
       category,
       status: 'pending',
       photo_url: photoUrl,
-      reported_by: profile?.user_id,
-      institution_id: profile?.institution_id,
+      reported_by: profile.user_id,
+      institution_id: institutionId,
       updated_at: new Date().toISOString(),
-    });
+    }).select();
 
     setSubmitting(false);
+    console.log('[Report] insert result:', { data, error });
 
     if (error) {
-      Alert.alert('Error', 'No se pudo reportar el incidente. Intentá nuevamente.');
+      setErrorMsg(`Error al crear: ${error.message} (code: ${error.code})`);
       return;
     }
 
-    Alert.alert(
-      'Incidente reportado',
-      'Tu reporte fue enviado exitosamente. El personal de soporte lo atenderá a la brevedad.',
-      [{ text: 'Aceptar', onPress: () => router.replace('/(user)/') }]
-    );
+    router.replace('/(user)/');
   }
 
   return (
@@ -266,6 +265,13 @@ export default function ReportIncident() {
             }
           </TouchableOpacity>
 
+          {errorMsg ? (
+            <View style={styles.errorBox}>
+              <MaterialIcons name="error-outline" size={16} color={COLORS.danger} />
+              <Text style={styles.errorText}>{errorMsg}</Text>
+            </View>
+          ) : null}
+
           <View style={{ height: 40 }} />
         </ScrollView>
       </KeyboardAvoidingView>
@@ -283,6 +289,13 @@ const styles = StyleSheet.create({
     borderBottomColor: COLORS.border,
   },
   navTitle: { fontSize: 20, fontWeight: '700', color: COLORS.textPrimary },
+  errorBox: {
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    backgroundColor: '#FEF2F2', borderRadius: 10,
+    padding: 12, marginTop: 12,
+    borderWidth: 1, borderColor: '#FCA5A5',
+  },
+  errorText: { fontSize: 13, color: COLORS.danger, flex: 1 },
   scroll: { flex: 1, paddingHorizontal: 20 },
   section: { marginTop: 22 },
   label: { fontSize: 13, fontWeight: '600', color: COLORS.textPrimary, marginBottom: 8 },
