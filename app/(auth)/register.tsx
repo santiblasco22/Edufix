@@ -25,7 +25,8 @@ function validatePassword(pass: string): string | null {
 
 export default function RegisterScreen() {
   const router = useRouter();
-  const [fullName, setFullName] = useState('');
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -42,7 +43,7 @@ export default function RegisterScreen() {
 
   async function handleRegister() {
     setErrorMsg('');
-    if (!fullName.trim() || !email.trim() || !password || !confirmPassword) {
+    if (!firstName.trim() || !lastName.trim() || !email.trim() || !password || !confirmPassword) {
       setErrorMsg('Por favor completá todos los campos.');
       return;
     }
@@ -54,10 +55,11 @@ export default function RegisterScreen() {
     }
 
     setLoading(true);
+    const fullName = `${firstName.trim()} ${lastName.trim()}`;
     const { error } = await supabase.auth.signUp({
       email: email.trim(),
       password,
-      options: { data: { full_name: fullName.trim(), role: 'user' } },
+      options: { data: { full_name: fullName, role: 'user' } },
     });
     setLoading(false);
 
@@ -85,18 +87,33 @@ export default function RegisterScreen() {
           <Text style={styles.title}>Crear cuenta</Text>
           <Text style={styles.subtitle}>Completá tus datos para registrarte</Text>
 
-          <View style={styles.fieldGroup}>
-            <Text style={styles.label}>Nombre completo</Text>
-            <View style={styles.inputWrapper}>
-              <MaterialIcons name="person" size={18} color={COLORS.textMuted} style={styles.inputIcon} />
-              <TextInput
-                style={styles.input}
-                value={fullName}
-                onChangeText={setFullName}
-                placeholder="Tu nombre y apellido"
-                placeholderTextColor={COLORS.textMuted}
-                autoCapitalize="words"
-              />
+          <View style={styles.nameRow}>
+            <View style={[styles.fieldGroup, { flex: 1 }]}>
+              <Text style={styles.label}>Nombre</Text>
+              <View style={styles.inputWrapper}>
+                <MaterialIcons name="person" size={18} color={COLORS.textMuted} style={styles.inputIcon} />
+                <TextInput
+                  style={styles.input}
+                  value={firstName}
+                  onChangeText={setFirstName}
+                  placeholder="Tu nombre"
+                  placeholderTextColor={COLORS.textMuted}
+                  autoCapitalize="words"
+                />
+              </View>
+            </View>
+            <View style={[styles.fieldGroup, { flex: 1 }]}>
+              <Text style={styles.label}>Apellido</Text>
+              <View style={styles.inputWrapper}>
+                <TextInput
+                  style={styles.input}
+                  value={lastName}
+                  onChangeText={setLastName}
+                  placeholder="Tu apellido"
+                  placeholderTextColor={COLORS.textMuted}
+                  autoCapitalize="words"
+                />
+              </View>
             </View>
           </View>
 
@@ -233,6 +250,7 @@ const styles = StyleSheet.create({
   title: { fontSize: 24, fontWeight: '700', color: COLORS.textPrimary, marginBottom: 6 },
   subtitle: { fontSize: 14, color: COLORS.textMuted, marginBottom: 28 },
   fieldGroup: { marginBottom: 18 },
+  nameRow: { flexDirection: 'row', gap: 12 },
   label: { fontSize: 13, fontWeight: '600', color: COLORS.textPrimary, marginBottom: 8 },
   inputWrapper: {
     flexDirection: 'row', alignItems: 'center',
