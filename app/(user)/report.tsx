@@ -110,9 +110,19 @@ export default function ReportIncident() {
     if (!title.trim()) { showError('Por favor ingresá un título.'); return; }
     if (!description.trim()) { showError('Por favor ingresá una descripción.'); return; }
     if (!profile) { showError('Sin sesión activa. Cerrá sesión y volvé a entrar.'); return; }
+    if (!profile.user_id) { showError('ID de usuario vacío. Cerrá sesión y volvé a entrar.'); return; }
+
+    const institutionId = profile.institution_id ?? '00000000-0000-0000-0000-000000000001';
 
     setSubmitting(true);
     try {
+      // Verificar que la sesión esté activa antes de insertar
+      const { data: sessionData } = await supabase.auth.getSession();
+      if (!sessionData.session) {
+        showError('La sesión expiró. Cerrá sesión y volvé a entrar.');
+        return;
+      }
+
       let photoUrl: string | null = null;
       if (photo) photoUrl = await uploadPhoto(photo);
 
@@ -125,32 +135,37 @@ export default function ReportIncident() {
         status: 'pending',
         photo_url: photoUrl,
         reported_by: profile.user_id,
-        institution_id: profile.institution_id ?? '00000000-0000-0000-0000-000000000001',
+        institution_id: institutionId,
         updated_at: new Date().toISOString(),
       });
 
       if (error) {
-        const isNetwork = error.message?.toLowerCase().includes('network') ||
-          error.message?.toLowerCase().includes('fetch') ||
-          error.message?.toLowerCase().includes('failed');
-        showError(
-          isNetwork
-            ? 'Sin conexión al servidor. Revisá tu internet e intentá de nuevo.'
-            : `Error al enviar: ${error.message}`
-        );
+        let msg: string;
+        const msgLower = error.message?.toLowerCase() ?? '';
+        if (msgLower.includes('network') || msgLower.includes('fetch') || msgLower.includes('failed')) {
+          msg = 'Sin conexión. Verificá que el proyecto de Supabase no esté pausado.';
+        } else if (error.code === '42501') {
+          msg = 'Sin permisos (RLS). Cerrá sesión y volvé a entrar.';
+        } else if (error.code === '23503') {
+          msg = 'La institución no existe en la DB. Ejecutá el SQL de supabase-updates.sql.';
+        } else if (error.code === '23502') {
+          msg = 'Falta un campo obligatorio. Verificá los datos.';
+        } else {
+          msg = `Error [${error.code ?? '?'}]: ${error.message}`;
+        }
+        showError(msg);
         return;
       }
 
       resetForm();
       router.replace('/(user)/');
     } catch (e: any) {
-      const isNetwork = e?.message?.toLowerCase().includes('network') ||
-        e?.message?.toLowerCase().includes('fetch') ||
-        e?.message?.toLowerCase().includes('failed');
+      const msgLower = e?.message?.toLowerCase() ?? '';
+      const isNetwork = msgLower.includes('network') || msgLower.includes('fetch') || msgLower.includes('failed');
       showError(
         isNetwork
-          ? 'Sin conexión al servidor. Revisá tu internet e intentá de nuevo.'
-          : 'Ocurrió un error inesperado. Intentá de nuevo.'
+          ? 'Sin conexión. Verificá que el proyecto de Supabase no esté pausado.'
+          : `Error inesperado: ${e?.message ?? 'desconocido'}`
       );
     } finally {
       setSubmitting(false);
