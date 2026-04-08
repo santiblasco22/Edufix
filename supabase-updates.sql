@@ -69,3 +69,51 @@ CREATE POLICY "Admins can delete incidents"
 CREATE POLICY "Users can delete own pending incidents"
   ON incidents FOR DELETE TO authenticated
   USING (reported_by = auth.uid() AND status = 'pending');
+
+-- =============================================
+-- Notificaciones automáticas
+-- =============================================
+
+-- 1. Notificar al alumno cuando su incidente cambia a in_progress o resolved
+CREATE OR REPLACE FUNCTION notify_reporter_on_status_change()
+RETURNS TRIGGER AS $$
+BEGIN
+  IF OLD.status = NEW.status THEN RETURN NEW; END IF;
+
+  IF NEW.status = 'in_progress' AND NEW.reported_by IS NOT NULL THEN
+    INSERT INTO notifications (user_id, incident_id, message)
+    VALUES (NEW.reported_by, NEW.id, 'Tu reporte "' || NEW.title || '" está siendo atendido por el personal.');
+  END IF;
+
+  IF NEW.status = 'resolved' AND NEW.reported_by IS NOT NULL THEN
+    INSERT INTO notifications (user_id, incident_id, message)
+    VALUES (NEW.reported_by, NEW.id, 'Tu reporte "' || NEW.title || '" fue resuelto exitosamente.');
+  END IF;
+
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+DROP TRIGGER IF EXISTS on_incident_status_change ON incidents;
+CREATE TRIGGER on_incident_status_change
+  AFTER UPDATE ON incidents
+  FOR EACH ROW EXECUTE FUNCTION notify_reporter_on_status_change();
+
+-- 2. Notificar a todo el personal cuando se crea un nuevo incidente
+CREATE OR REPLACE FUNCTION notify_staff_on_new_incident()
+RETURNS TRIGGER AS $$
+BEGIN
+  INSERT INTO notifications (user_id, incident_id, message)
+  SELECT p.user_id, NEW.id,
+    'Nuevo incidente reportado: "' || NEW.title || '"'
+  FROM profiles p
+  WHERE p.institution_id = NEW.institution_id
+    AND p.role = 'staff';
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+DROP TRIGGER IF EXISTS on_new_incident ON incidents;
+CREATE TRIGGER on_new_incident
+  AFTER INSERT ON incidents
+  FOR EACH ROW EXECUTE FUNCTION notify_staff_on_new_incident();

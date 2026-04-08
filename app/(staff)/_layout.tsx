@@ -1,8 +1,13 @@
 import { Tabs } from 'expo-router';
 import { MaterialIcons } from '@expo/vector-icons';
 import { COLORS } from '@/constants';
+import { useAuth } from '@/hooks/useAuth';
+import { useUnreadNotifications } from '@/hooks/useUnreadNotifications';
 
 export default function StaffLayout() {
+  const { profile } = useAuth();
+  const unread = useUnreadNotifications(profile?.user_id);
+
   return (
     <Tabs
       screenOptions={{
@@ -39,6 +44,16 @@ export default function StaffLayout() {
           title: 'Incidentes',
           tabBarIcon: ({ color, size }) => (
             <MaterialIcons name="list-alt" size={size} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="notifications"
+        options={{
+          title: 'Avisos',
+          tabBarBadge: unread > 0 ? unread : undefined,
+          tabBarIcon: ({ color, size }) => (
+            <MaterialIcons name="notifications" size={size} color={color} />
           ),
         }}
       />
