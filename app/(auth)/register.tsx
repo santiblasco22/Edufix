@@ -1,69 +1,55 @@
 import React, { useState } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, StyleSheet,
-  KeyboardAvoidingView, Platform, ScrollView, ActivityIndicator,
+  KeyboardAvoidingView, Platform, ScrollView, Alert, ActivityIndicator,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { MaterialIcons } from '@expo/vector-icons';
 import { supabase } from '@/lib/supabase';
 import { COLORS } from '@/constants';
+import { UserRole } from '@/types';
 
-function friendlyError(msg: string): string {
-  const m = msg.toLowerCase();
-  if (m.includes('already registered') || m.includes('already exists') || m.includes('email address is already')) {
-    return 'Este correo ya está registrado. Usá otro o iniciá sesión.';
-  }
-  return msg;
-}
-
-function validatePassword(pass: string): string | null {
-  if (pass.length < 6) return 'Debe tener al menos 6 caracteres.';
-  if (!/[A-Z]/.test(pass)) return 'Debe tener al menos una mayúscula.';
-  if (!/[^a-zA-Z0-9]/.test(pass)) return 'Debe tener al menos un carácter especial (!@#$%...).';
-  return null;
-}
+const ROLE_OPTIONS: { value: UserRole; label: string; description: string; icon: keyof typeof MaterialIcons.glyphMap }[] = [
+  { value: 'user', label: 'Alumno / Docente', description: 'Reportar y seguir incidentes', icon: 'person' },
+  { value: 'staff', label: 'Personal de Gestión', description: 'Gestionar y resolver incidentes', icon: 'engineering' },
+  { value: 'admin', label: 'Administrador', description: 'Acceso total y configuración', icon: 'admin-panel-settings' },
+];
 
 export default function RegisterScreen() {
   const router = useRouter();
-  const [firstName, setFirstName] = useState('');
-  const [lastName, setLastName] = useState('');
+  const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  const [showConfirm, setShowConfirm] = useState(false);
+  const [role, setRole] = useState<UserRole>('user');
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
 
-  const passOk = {
-    length: password.length >= 6,
-    upper: /[A-Z]/.test(password),
-    special: /[^a-zA-Z0-9]/.test(password),
-  };
-
   async function handleRegister() {
     setErrorMsg('');
-    if (!firstName.trim() || !lastName.trim() || !email.trim() || !password || !confirmPassword) {
+    if (!fullName || !email || !password) {
       setErrorMsg('Por favor completá todos los campos.');
       return;
     }
-    const passError = validatePassword(password);
-    if (passError) { setErrorMsg(passError); return; }
-    if (password !== confirmPassword) {
-      setErrorMsg('Las contraseñas no coinciden.');
+    if (password.length < 6 ) {
+      setErrorMsg('La contraseña debe tener al menos 6 caracteres.');
       return;
     }
 
     setLoading(true);
-    const fullName = `${firstName.trim()} ${lastName.trim()}`;
     const { error } = await supabase.auth.signUp({
       email: email.trim(),
       password,
-      options: { data: { full_name: fullName, role: 'user' } },
+      options: { data: { full_name: fullName, role } },
     });
+
     setLoading(false);
 
-    if (error) { setErrorMsg(friendlyError(error.message)); return; }
+    if (error) {
+      setErrorMsg(error.message);
+      return;
+    }
+
     router.replace('/(auth)/login');
   }
 
@@ -87,33 +73,18 @@ export default function RegisterScreen() {
           <Text style={styles.title}>Crear cuenta</Text>
           <Text style={styles.subtitle}>Completá tus datos para registrarte</Text>
 
-          <View style={styles.nameRow}>
-            <View style={[styles.fieldGroup, { flex: 1 }]}>
-              <Text style={styles.label}>Nombre</Text>
-              <View style={styles.inputWrapper}>
-                <MaterialIcons name="person" size={18} color={COLORS.textMuted} style={styles.inputIcon} />
-                <TextInput
-                  style={styles.input}
-                  value={firstName}
-                  onChangeText={setFirstName}
-                  placeholder="Tu nombre"
-                  placeholderTextColor={COLORS.textMuted}
-                  autoCapitalize="words"
-                />
-              </View>
-            </View>
-            <View style={[styles.fieldGroup, { flex: 1 }]}>
-              <Text style={styles.label}>Apellido</Text>
-              <View style={styles.inputWrapper}>
-                <TextInput
-                  style={styles.input}
-                  value={lastName}
-                  onChangeText={setLastName}
-                  placeholder="Tu apellido"
-                  placeholderTextColor={COLORS.textMuted}
-                  autoCapitalize="words"
-                />
-              </View>
+          <View style={styles.fieldGroup}>
+            <Text style={styles.label}>Nombre completo</Text>
+            <View style={styles.inputWrapper}>
+              <MaterialIcons name="person" size={18} color={COLORS.textMuted} style={styles.inputIcon} />
+              <TextInput
+                style={styles.input}
+                value={fullName}
+                onChangeText={setFullName}
+                placeholder="Tu nombre y apellido"
+                placeholderTextColor={COLORS.textMuted}
+                autoCapitalize="words"
+              />
             </View>
           </View>
 
@@ -146,33 +117,43 @@ export default function RegisterScreen() {
                 secureTextEntry={!showPassword}
               />
               <TouchableOpacity onPress={() => setShowPassword(!showPassword)} style={styles.eyeBtn}>
-                <MaterialIcons name={showPassword ? 'visibility' : 'visibility-off'} size={18} color={COLORS.textMuted} />
+                <MaterialIcons
+                  name={showPassword ? 'visibility' : 'visibility-off'}
+                  size={18}
+                  color={COLORS.textMuted}
+                />
               </TouchableOpacity>
             </View>
-            {password.length > 0 && (
-              <View style={styles.requirements}>
-                <Req met={passOk.length} text="Mínimo 6 caracteres" />
-                <Req met={passOk.upper} text="Al menos una mayúscula" />
-                <Req met={passOk.special} text="Al menos un carácter especial" />
-              </View>
-            )}
           </View>
 
           <View style={styles.fieldGroup}>
-            <Text style={styles.label}>Repetir contraseña</Text>
-            <View style={styles.inputWrapper}>
-              <MaterialIcons name="lock" size={18} color={COLORS.textMuted} style={styles.inputIcon} />
-              <TextInput
-                style={[styles.input, styles.inputWithAction]}
-                value={confirmPassword}
-                onChangeText={setConfirmPassword}
-                placeholder="Repetí tu contraseña"
-                placeholderTextColor={COLORS.textMuted}
-                secureTextEntry={!showConfirm}
-              />
-              <TouchableOpacity onPress={() => setShowConfirm(!showConfirm)} style={styles.eyeBtn}>
-                <MaterialIcons name={showConfirm ? 'visibility' : 'visibility-off'} size={18} color={COLORS.textMuted} />
-              </TouchableOpacity>
+            <Text style={styles.label}>Rol en la institución</Text>
+            <View style={styles.roleList}>
+              {ROLE_OPTIONS.map((option) => (
+                <TouchableOpacity
+                  key={option.value}
+                  style={[styles.roleOption, role === option.value && styles.roleOptionSelected]}
+                  onPress={() => setRole(option.value)}
+                  activeOpacity={0.7}
+                >
+                  <View style={[styles.roleIcon, role === option.value && styles.roleIconSelected]}>
+                    <MaterialIcons
+                      name={option.icon}
+                      size={20}
+                      color={role === option.value ? COLORS.primary : COLORS.textMuted}
+                    />
+                  </View>
+                  <View style={styles.roleTextWrapper}>
+                    <Text style={[styles.roleLabel, role === option.value && styles.roleLabelSelected]}>
+                      {option.label}
+                    </Text>
+                    <Text style={styles.roleDesc}>{option.description}</Text>
+                  </View>
+                  <View style={[styles.radioOuter, role === option.value && styles.radioOuterSelected]}>
+                    {role === option.value && <View style={styles.radioInner} />}
+                  </View>
+                </TouchableOpacity>
+              ))}
             </View>
           </View>
 
@@ -189,7 +170,10 @@ export default function RegisterScreen() {
             disabled={loading}
             activeOpacity={0.8}
           >
-            {loading ? <ActivityIndicator color={COLORS.white} /> : <Text style={styles.btnText}>Crear cuenta</Text>}
+            {loading
+              ? <ActivityIndicator color={COLORS.white} />
+              : <Text style={styles.btnText}>Crear cuenta</Text>
+            }
           </TouchableOpacity>
 
           <View style={styles.loginRow}>
@@ -204,15 +188,6 @@ export default function RegisterScreen() {
   );
 }
 
-function Req({ met, text }: { met: boolean; text: string }) {
-  return (
-    <View style={styles.req}>
-      <MaterialIcons name={met ? 'check-circle' : 'radio-button-unchecked'} size={14} color={met ? COLORS.success : COLORS.textMuted} />
-      <Text style={[styles.reqText, met && styles.reqTextMet]}>{text}</Text>
-    </View>
-  );
-}
-
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.primary },
   scroll: { flexGrow: 1 },
@@ -224,21 +199,30 @@ const styles = StyleSheet.create({
   },
   backBtn: {
     position: 'absolute',
-    top: 60, left: 20,
-    width: 40, height: 40,
+    top: 60,
+    left: 20,
+    width: 40,
+    height: 40,
     borderRadius: 12,
     backgroundColor: 'rgba(255,255,255,0.15)',
     justifyContent: 'center',
     alignItems: 'center',
   },
   logoContainer: {
-    width: 64, height: 64,
+    width: 64,
+    height: 64,
     borderRadius: 18,
     backgroundColor: 'rgba(255,255,255,0.15)',
-    justifyContent: 'center', alignItems: 'center',
+    justifyContent: 'center',
+    alignItems: 'center',
     marginBottom: 12,
   },
-  appName: { fontSize: 26, fontWeight: '800', color: COLORS.white, letterSpacing: 1 },
+  appName: {
+    fontSize: 26,
+    fontWeight: '800',
+    color: COLORS.white,
+    letterSpacing: 1,
+  },
   card: {
     backgroundColor: COLORS.surface,
     borderTopLeftRadius: 32,
@@ -247,43 +231,132 @@ const styles = StyleSheet.create({
     paddingBottom: 50,
     flex: 1,
   },
-  title: { fontSize: 24, fontWeight: '700', color: COLORS.textPrimary, marginBottom: 6 },
-  subtitle: { fontSize: 14, color: COLORS.textMuted, marginBottom: 28 },
+  title: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: COLORS.textPrimary,
+    marginBottom: 6,
+  },
+  subtitle: {
+    fontSize: 14,
+    color: COLORS.textMuted,
+    marginBottom: 28,
+  },
   fieldGroup: { marginBottom: 18 },
-  nameRow: { flexDirection: 'row', gap: 12 },
-  label: { fontSize: 13, fontWeight: '600', color: COLORS.textPrimary, marginBottom: 8 },
+  label: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: COLORS.textPrimary,
+    marginBottom: 8,
+  },
   inputWrapper: {
-    flexDirection: 'row', alignItems: 'center',
-    borderWidth: 1.5, borderColor: COLORS.border,
-    borderRadius: 12, backgroundColor: COLORS.background,
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1.5,
+    borderColor: COLORS.border,
+    borderRadius: 12,
+    backgroundColor: COLORS.background,
     paddingHorizontal: 12,
   },
   inputIcon: { marginRight: 8 },
-  input: { flex: 1, height: 50, fontSize: 15, color: COLORS.textPrimary },
+  input: {
+    flex: 1,
+    height: 50,
+    fontSize: 15,
+    color: COLORS.textPrimary,
+  },
   inputWithAction: { paddingRight: 8 },
   eyeBtn: { padding: 4 },
-  requirements: { marginTop: 8, gap: 4 },
-  req: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  reqText: { fontSize: 12, color: COLORS.textMuted },
-  reqTextMet: { color: COLORS.success },
-  errorBox: {
-    flexDirection: 'row', alignItems: 'center', gap: 8,
-    backgroundColor: '#FEF2F2', borderRadius: 10,
-    padding: 12, marginBottom: 12,
-    borderWidth: 1, borderColor: '#FCA5A5',
+  roleList: { gap: 10 },
+  roleOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 14,
+    borderRadius: 14,
+    borderWidth: 1.5,
+    borderColor: COLORS.border,
+    backgroundColor: COLORS.background,
+    gap: 12,
   },
-  errorText: { fontSize: 13, color: COLORS.danger, flex: 1 },
+  roleOptionSelected: {
+    borderColor: COLORS.primary,
+    backgroundColor: COLORS.accentLight,
+  },
+  roleIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 10,
+    backgroundColor: COLORS.surface,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  roleIconSelected: {
+    backgroundColor: 'rgba(30, 58, 95, 0.1)',
+  },
+  roleTextWrapper: { flex: 1 },
+  roleLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: COLORS.textSecondary,
+    marginBottom: 2,
+  },
+  roleLabelSelected: { color: COLORS.primary },
+  roleDesc: {
+    fontSize: 12,
+    color: COLORS.textMuted,
+  },
+  radioOuter: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    borderWidth: 2,
+    borderColor: COLORS.border,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  radioOuterSelected: { borderColor: COLORS.primary },
+  radioInner: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: COLORS.primary,
+  },
   btn: {
-    backgroundColor: COLORS.primary, borderRadius: 14,
-    height: 52, justifyContent: 'center', alignItems: 'center',
-    marginTop: 8, marginBottom: 20,
+    backgroundColor: COLORS.primary,
+    borderRadius: 14,
+    height: 52,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginTop: 8,
+    marginBottom: 20,
     shadowColor: COLORS.primary,
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3, shadowRadius: 8, elevation: 4,
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 4,
   },
   btnDisabled: { opacity: 0.7 },
-  btnText: { color: COLORS.white, fontSize: 16, fontWeight: '700' },
-  loginRow: { flexDirection: 'row', justifyContent: 'center' },
+  btnText: {
+    color: COLORS.white,
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  errorBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: COLORS.dangerLight,
+    borderRadius: 10,
+    padding: 12,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: '#FCA5A5',
+  },
+  errorText: { fontSize: 13, color: COLORS.danger, flex: 1 },
+  loginRow: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+  },
   loginText: { fontSize: 14, color: COLORS.textMuted },
   loginLink: { fontSize: 14, color: COLORS.accent, fontWeight: '600' },
 });
